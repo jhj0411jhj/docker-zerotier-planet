@@ -52,23 +52,55 @@ function deploy() {
     docker cp zerotier-planet:/app/bin/planet /opt/planet
 }
 
+function restart() {
+    imageName="zerotier-planet"
+
+    echo "----------------------------"
+    echo "注意：如果ip变化请使用1-安装，并重新获取/opt/planet"
+    echo "----------------------------"
+    echo "请检查当前ip是否正确:"
+    cat ./patch/patch.json
+    echo "是否继续? y/n"
+    read or
+    if [ "$or" != "y" ]; then
+        echo "选项错误，退出"
+        exit -1
+    fi
+
+    echo "清除docker实例"
+    rm /opt/planet
+    docker stop $imageName
+    docker rm $imageName
+
+    echo "启动服务"
+    for i in $(lsof -i:9993 -t); do kill -2 $i; done
+    docker run -d -p 9993:9993 -p 9993:9993/udp -p 3443:3443 --name $imageName --restart unless-stopped $imageName
+    docker cp zerotier-planet:/app/bin/planet /opt/planet
+}
+
 function menu() {
+    echo "https://github.com/xubiaolin/docker-zerotier-planet"
+    echo "deploy完成后，将/opt/planet下载并覆盖掉各个客户端的planet文件（覆盖前请备份），通常位于C:\ProgramData\ZeroTier\One"
+    echo "之后客户端需要重启服务，即可连接到planet。可通过zerotier-cli listpeers查看连接状态。若为DIRECT且有IP则连接成功"
     echo
     echo "=============功能菜单============="
     echo "| 1 - 安装"
+    echo "| 2 - 重启（如果ip变化请使用1-安装，并重新获取/opt/planet）"
     #echo "| 2 - 更新"
     #echo "| 3 - 卸载"
     echo "| q - 退出"
     echo "---------------------------------"
     printf "请选择菜单："
-    read -n 1 n
+    read n
     echo
     if [[ "$n" = "1" ]]; then
         echo "安装"
         deploy
 
-    #elif [ "$n" = "2" ]; then
-    #    echo $n
+    elif [ "$n" = "2" ]; then
+        echo $n
+        restart
+
     #elif [ "$n" = "3" ]; then
     #    echo $n
     elif [ "$n" = "q" ]; then
